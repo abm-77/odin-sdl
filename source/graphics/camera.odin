@@ -12,6 +12,12 @@ Viewport :: struct {
 Camera :: struct {
 	position: linalg.Vector3f32,
 	view_matrix: linalg.Matrix4f32,
+	proj_matrix: linalg.Matrix4f32,
+}
+
+camera_get_view_proj_matrix :: proc (using camera: ^Camera) -> (linalg.Matrix4f32) {
+	using linalg;
+	return matrix_mul(proj_matrix, view_matrix);
 }
 
 camera_update_view_matrix :: proc (using camera: ^Camera) {

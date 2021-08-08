@@ -66,7 +66,6 @@ init :: proc (width: i32 = 800, height: i32 = 600) -> (app: App) {
     // blending for transparency
     gl.Enable(gl.BLEND);
     gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    gl.Enable(gl.DEPTH_TEST);
 
     gl.ClearColor (0.25, 0.5, 0.5, 1.0);
 
@@ -134,13 +133,15 @@ main :: proc () {
 
     sprite1 := graphics.Sprite {
         texture1,
-        [2]f32 {0, 0},
+        [2]f32 {0.5, 0.5},
+        [2]f32 {300, 100},
         [2]f32 {0.25, 0.25},
-        0,
+        45,
         [4]f32{1.0, 1.0, 1.0, 1.0},
     };
     sprite2 := graphics.Sprite {
         texture2,
+        [2]f32 {0, 0},
         [2]f32 {100, 200},
         [2]f32 {0.75, 0.30},
         0,
@@ -148,6 +149,7 @@ main :: proc () {
     };
 
     graphics.sprite_renderer_init(shader_program);
+    camera.proj_matrix = linalg.matrix_ortho3d_f32 (0, 800, 600, 0, -1, 1);
 
     for running {
         using linalg;
@@ -155,11 +157,8 @@ main :: proc () {
         update(&game);            
 
         graphics.shader_bind(shader_program);
-
-        graphics.shader_set_mat4fv(shader_program, "u_View", linalg.matrix_to_ptr(&camera.view_matrix));
-
-        proj := linalg.matrix_ortho3d_f32 (0, 800, 600, 0, -1, 1);
-        graphics.shader_set_mat4fv(shader_program, "u_Projection", linalg.matrix_to_ptr(&proj));
+        view_proj_matrix := graphics.camera_get_view_proj_matrix(&camera);
+        graphics.shader_set_mat4fv(shader_program, "u_ViewProjection", linalg.matrix_to_ptr(&view_proj_matrix));
         graphics.shader_bind(0);
 
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -174,4 +173,5 @@ main :: proc () {
 
         sdl.gl_swap_window(window);
     }
+
 }
