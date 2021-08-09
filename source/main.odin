@@ -79,8 +79,11 @@ init :: proc (width: i32 = 800, height: i32 = 600) -> (app: App) {
 load_resources :: proc (using app: ^App) {
     using system;
     resource_manager = rm_create();
+
     rm_load_texture(&resource_manager, rm_image_dir("awesomeface.png"), true, "face");
     rm_load_texture(&resource_manager, rm_image_dir("wall.jpg"), false, "wall");
+    rm_load_texture(&resource_manager, rm_image_dir("tilesheet.png"), true, "tilesheet");
+
     rm_load_shader(&resource_manager, rm_shader_dir("sprite/sprite2.vert"), rm_shader_dir("sprite/sprite2.frag"), "sprite_unlit");
 }
 
@@ -125,28 +128,43 @@ main :: proc () {
     defer shutdown(&game);
     
     texture1, _ := system.rm_get_texture(&resource_manager, "face");
-    fmt.printf("texture_id: %d\ntexture_width: %d\ntexture_height: %d\n", texture1.id, texture1.width, texture1.height);
     texture2, _ := system.rm_get_texture(&resource_manager, "wall");
-    fmt.printf("texture_id: %d\ntexture_width: %d\ntexture_height: %d\n", texture2.id, texture2.width, texture2.height);
+    texture3, _ := system.rm_get_texture(&resource_manager, "tilesheet");
+
     shader_program, success := system.rm_get_shader(&resource_manager, "sprite_unlit");
     fmt.printf("shader_id: %s\n", shader_program);
 
     sprite1 := graphics.Sprite {
-        texture1,
+        &texture1,
         [2]f32 {0.5, 0.5},
-        [2]f32 {300, 100},
+        [2]f32 {300, 50},
         [2]f32 {0.25, 0.25},
         45,
         [4]f32{1.0, 1.0, 1.0, 1.0},
     };
     sprite2 := graphics.Sprite {
-        texture2,
+        &texture2,
         [2]f32 {0, 0},
         [2]f32 {100, 200},
         [2]f32 {0.75, 0.30},
         0,
         [4]f32{1.0, 0.0, 0.0, 1.0},
     };
+
+
+    anim: graphics.AnimatedSprite;
+    anim.texture = &texture3;
+    anim.origin = {0.5, 0.5};
+    anim.position = {10, 10};
+    anim.scale = {2, 2};
+    anim.rotation = 0;
+    anim.color = {1.0, 1.0, 1.0, 1.0};
+
+    graphics.animated_sprite_add_frame(&anim, {0,0}, {16,16}, 1000);
+    graphics.animated_sprite_add_frame(&anim, {16,0}, {16,16}, 1000);
+    graphics.animated_sprite_add_frame(&anim, {32,0}, {16,16}, 1000);
+    graphics.animated_sprite_add_frame(&anim, {48,0}, {16,16}, 1000);
+    graphics.animated_sprite_start(&anim);
 
     graphics.sprite_renderer_init(shader_program);
     camera.proj_matrix = linalg.matrix_ortho3d_f32 (0, 800, 600, 0, -1, 1);
@@ -155,6 +173,8 @@ main :: proc () {
         using linalg;
 
         update(&game);            
+
+        sprite1.rotation += 1;
 
         graphics.shader_bind(shader_program);
         view_proj_matrix := graphics.camera_get_view_proj_matrix(&camera);
@@ -167,6 +187,9 @@ main :: proc () {
         
         graphics.sprite_renderer_draw_sprite(&sprite1);
         graphics.sprite_renderer_draw_sprite(&sprite2);
+
+        graphics.animated_sprite_update(&anim);
+        graphics.sprite_renderer_draw_sprite(&anim);
 
         graphics.sprite_renderer_end_batch();
         graphics.sprite_renderer_flush();

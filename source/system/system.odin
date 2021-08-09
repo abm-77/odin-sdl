@@ -75,7 +75,7 @@ rm_load_texture_from_file :: proc (using manager: ^ResourceManager, path: cstrin
 	}
 
 	width, height, n_channels: i32;
-	stbi.set_flip_vertically_on_load(1); 
+	stbi.set_flip_vertically_on_load(0); 
 	data := stbi.load(path, &width, &height, &n_channels, 0);
 	defer stbi.image_free(data);
 
