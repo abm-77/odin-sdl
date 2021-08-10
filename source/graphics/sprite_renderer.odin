@@ -413,7 +413,7 @@ proc (position: [2]f32, size: [2]f32, color: [4]f32, texture: ^Texture2D, src_po
     texcoords := texture_pixel_to_texcoords(src_pos, texture);
     texsize := texture_pixel_to_texcoords(src_size, texture);
 
-    draw_origin := (origin * size) - position;
+    draw_origin := position + (origin * size);
     angle := math.to_radians(f32(rotation));
 
     tl := v2_rotate_about_v2([2]f32{position.x, position.y}, draw_origin, angle);
