@@ -9,7 +9,9 @@ import "core:mem"
 import "core:math/linalg"
 import "core:math"
 
+import "world"
 import "system"
+import "system/input"
 import "graphics"
 
 App :: struct {
@@ -83,6 +85,7 @@ load_resources :: proc (using app: ^App) {
     rm_load_texture(&resource_manager, rm_image_dir("awesomeface.png"), true, "face");
     rm_load_texture(&resource_manager, rm_image_dir("wall.jpg"), false, "wall");
     rm_load_texture(&resource_manager, rm_image_dir("tilesheet.png"), true, "tilesheet");
+    rm_load_texture(&resource_manager, rm_image_dir("map_texture.png"), true, "map");
 
     rm_load_shader(&resource_manager, rm_shader_dir("sprite/sprite2.vert"), rm_shader_dir("sprite/sprite2.frag"), "sprite_unlit");
 }
@@ -97,6 +100,7 @@ update :: proc (using app: ^App) {
         if e.type == sdl.Event_Type.Quit {
             running = false;
         }
+		input.update_input_state(e);
         if e.type == sdl.Event_Type.Key_Down {
             switch (e.key.keysym.sym) {
                 case i32(sdl.SDLK_UP): {
@@ -130,7 +134,11 @@ main :: proc () {
     texture1, _ := system.rm_get_texture(&resource_manager, "face");
     texture2, _ := system.rm_get_texture(&resource_manager, "wall");
     texture3, _ := system.rm_get_texture(&resource_manager, "tilesheet");
+	map_texture, _ := system.rm_get_texture(&resource_manager, "map");
 
+	world.load_map(&map_texture);
+
+	/*
     shader_program, success := system.rm_get_shader(&resource_manager, "sprite_unlit");
     fmt.printf("shader_id: %s\n", shader_program);
 
@@ -146,15 +154,14 @@ main :: proc () {
         &texture2,
         [2]f32 {0, 0},
         [2]f32 {100, 200},
-        [2]f32 {0.75, 0.30},
+        [2]f32 {0.1, 0.1},
         0,
         [4]f32{1.0, 0.0, 0.0, 1.0},
     };
 
-
     anim: graphics.AnimatedSprite;
     anim.texture = &texture3;
-    anim.origin = {0.5, 0.5};
+    anim.origin = {0, 0};
     anim.position = {10, 10};
     anim.scale = {2, 2};
     anim.rotation = 0;
@@ -184,10 +191,24 @@ main :: proc () {
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         graphics.sprite_renderer_begin_batch();
-        
+		
+		if input.get_mouse_button(input.MouseButton.LEFT) {
+			mouse_pos := input.mouse_position();
+			sprite1.position = mouse_pos;
+		}
+
+		for row in 0..3 {
+			for col in 0..3 {
+				if world.map_1()[row][col] == 1 {
+					sprite2.position.x = f32(col * 64);
+					sprite2.position.y = f32(row * 64);
+					graphics.sprite_renderer_draw_sprite(&sprite2);
+				}
+			}
+		}
+
         graphics.sprite_renderer_draw_sprite(&sprite1);
         graphics.sprite_renderer_draw_sprite(&sprite2);
-
         graphics.animated_sprite_update(&anim);
         graphics.sprite_renderer_draw_sprite(&anim);
 
@@ -196,5 +217,6 @@ main :: proc () {
 
         sdl.gl_swap_window(window);
     }
+	*/
 
 }

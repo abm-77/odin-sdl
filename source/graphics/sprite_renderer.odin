@@ -16,6 +16,16 @@ MAX_TEXTURES :: 16;
 
 Quad :: [4]Vertex;
 
+Color8 :: struct {
+	r, g, b, a: u8,
+}
+
+get_texture_data :: proc (texture: ^Texture2D, format: u32,  out: rawptr) {
+	gl.BindTexture(gl.TEXTURE_2D, texture.id);
+	gl.GetTexImage(gl.TEXTURE_2D, 0, format, gl.UNSIGNED_BYTE, out);
+	gl.BindTexture(gl.TEXTURE_2D, 0);
+}
+
 Vertex :: struct {
     position: [3]f32,
     color: [4]f32,
@@ -320,68 +330,8 @@ sprite_renderer_draw_quad_color :: proc (position: [2]f32, size: [2]f32, color: 
 sprite_renderer_draw_quad_texture :: 
 proc (position: [2]f32, size: [2]f32, color: [4]f32, texture: ^Texture2D, origin: [2]f32 = {0, 0}, rotation: f32 = 0) {
     using sprite_renderer;
-
-    if index_count >= MAX_INDICES || texture_slot_index > MAX_TEXTURES - 1 {
-        sprite_renderer_end_batch();
-        sprite_renderer_flush();
-        sprite_renderer_begin_batch();
-    }
-
-    tex_idx : f32 = -1;
-    for i: u32 = 1; i < texture_slot_index; i += 1 {
-        if texture_slots[i] == texture.id {
-            tex_idx = f32(i);
-            break;
-        }
-    }
-
-    if tex_idx < 0 {
-        tex_idx = f32 (texture_slot_index);
-        texture_slots[texture_slot_index] = texture.id;
-        texture_slot_index += 1;
-    }
-
-    draw_origin := position + (origin * size);
-
-    angle := math.to_radians(f32(rotation));
-
-    tl := v2_rotate_about_v2([2]f32{position.x, position.y}, draw_origin, angle);
-    quad_buffer[quad_buffer_index] = Vertex {
-        [3]f32 {tl.x, tl.y, 0},
-        color,
-        [2]f32 {0, 0},
-        tex_idx,
-    };
-    quad_buffer_index += 1;
-
-    tr := v2_rotate_about_v2([2]f32{position.x + size.x, position.y}, draw_origin, angle);
-    quad_buffer[quad_buffer_index] = Vertex {
-        [3]f32 {tr.x, tr.y, 0},
-        color,
-        [2]f32 {1.0, 0},
-        tex_idx,
-    };
-    quad_buffer_index += 1;
-
-    br := v2_rotate_about_v2([2]f32{position.x + size.x, position.y + size.y}, draw_origin, angle);
-    quad_buffer[quad_buffer_index] = Vertex {
-        [3]f32 {br.x, br.y, 0},
-        color,
-        [2]f32 {1.0, 1.0},
-        tex_idx,
-    };
-    quad_buffer_index += 1;
-
-    bl := v2_rotate_about_v2([2]f32{position.x, position.y + size.y}, draw_origin, angle);
-    quad_buffer[quad_buffer_index] = Vertex {
-        [3]f32 {bl.x, bl.y, 0},
-        color,
-        [2]f32 {0, 1.0},
-        tex_idx,
-    };
-    quad_buffer_index += 1;
-
-    index_count += 6;
+	sprite_renderer_draw_quad_texture_ext(position, size, color, texture, [2]f32{0.0, 0.0}, 
+		[2]f32{f32(texture.width), f32(texture.height)}, origin, rotation);
 }
 
 @(private)
@@ -413,10 +363,14 @@ proc (position: [2]f32, size: [2]f32, color: [4]f32, texture: ^Texture2D, src_po
     texcoords := texture_pixel_to_texcoords(src_pos, texture);
     texsize := texture_pixel_to_texcoords(src_size, texture);
 
-    draw_origin := position + (origin * size);
     angle := math.to_radians(f32(rotation));
+	left := position.x - (origin.x * size.x);
+	right : = position.x + ((1.0 - origin.x) * size.x);
+	top := position.y - (origin.y * size.y);
+	bottom := position.y + ((1.0 - origin.y) * size.y);	
 
-    tl := v2_rotate_about_v2([2]f32{position.x, position.y}, draw_origin, angle);
+
+    tl := v2_rotate_about_v2([2]f32{left, top}, position, angle);
     quad_buffer[quad_buffer_index] = Vertex {
         [3]f32 {tl.x, tl.y, 0},
         color,
@@ -425,7 +379,7 @@ proc (position: [2]f32, size: [2]f32, color: [4]f32, texture: ^Texture2D, src_po
     };
     quad_buffer_index += 1;
 
-    tr := v2_rotate_about_v2([2]f32{position.x + size.x, position.y}, draw_origin, angle);
+    tr := v2_rotate_about_v2([2]f32{right, top}, position, angle);
     quad_buffer[quad_buffer_index] = Vertex {
         [3]f32 {tr.x, tr.y, 0},
         color,
@@ -434,7 +388,7 @@ proc (position: [2]f32, size: [2]f32, color: [4]f32, texture: ^Texture2D, src_po
     };
     quad_buffer_index += 1;
 
-    br := v2_rotate_about_v2([2]f32{position.x + size.x, position.y + size.y}, draw_origin, angle);
+    br := v2_rotate_about_v2([2]f32{right, bottom}, position, angle);
     quad_buffer[quad_buffer_index] = Vertex {
         [3]f32 {br.x, br.y, 0},
         color,
@@ -443,7 +397,7 @@ proc (position: [2]f32, size: [2]f32, color: [4]f32, texture: ^Texture2D, src_po
     };
     quad_buffer_index += 1;
 
-    bl := v2_rotate_about_v2([2]f32{position.x, position.y + size.y}, draw_origin, angle);
+    bl := v2_rotate_about_v2([2]f32{left, bottom}, position, angle);
     quad_buffer[quad_buffer_index] = Vertex {
         [3]f32 {bl.x, bl.y, 0},
         color,
