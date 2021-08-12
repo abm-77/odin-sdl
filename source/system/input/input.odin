@@ -2,6 +2,7 @@ package input
 
 import sdl "shared:odin-sdl2"
 import "core:fmt"
+import "../../graphics"
 
 NUM_SDLK_DOWN_EVENTS :: 322;
 
@@ -43,9 +44,14 @@ update_input_state :: proc (event: sdl.Event) {
 	}
 }
 
-mouse_position :: proc () -> ([2]f32) {
+mouse_world_position :: proc () -> ([2]f32) {
 	using input_state;
 	return [2]f32{f32(mouse_position.x), f32(mouse_position.y)};
+}
+
+mouse_screen_position :: proc (camera: ^graphics.Camera) -> ([2]f32) {
+	using input_state;
+	return [2]f32{f32(mouse_position.x) + camera.position.x, f32(mouse_position.y) + camera.position.y};
 }
 
 get_key_down :: proc (key: sdl.Keycode) -> (b32) {

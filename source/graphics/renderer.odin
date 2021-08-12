@@ -1,30 +1,17 @@
 package graphics
 
 import gl "shared:odin-gl"
-
 import "core:fmt"
 import "core:mem"
 import "core:math"
 import "core:math/linalg"
-
 import "../system/timer"
 
+Quad :: [4]Vertex;
 MAX_QUADS :: 1000;
 MAX_VERTICES :: MAX_QUADS * 4;
 MAX_INDICES :: MAX_QUADS * 6;
 MAX_TEXTURES :: 16;
-
-Quad :: [4]Vertex;
-
-Color8 :: struct {
-	r, g, b, a: u8,
-}
-
-get_texture_data :: proc (texture: ^Texture2D, format: u32,  out: rawptr) {
-	gl.BindTexture(gl.TEXTURE_2D, texture.id);
-	gl.GetTexImage(gl.TEXTURE_2D, 0, format, gl.UNSIGNED_BYTE, out);
-	gl.BindTexture(gl.TEXTURE_2D, 0);
-}
 
 Vertex :: struct {
     position: [3]f32,
@@ -38,22 +25,31 @@ Texture2D :: struct {
     width, height: i32,
     internal_format: i32,
     image_format: u32,
-
     wrap_s: i32,
     wrap_t: i32,
     filter_min: i32,
     filter_max: i32,
 }
 
+SpriteRenderer :: struct {
+   shader_program: u32,
+   quad_vao: u32, 
+   quad_vbo: u32,
+   quad_ibo: u32,
+   white_texture: Texture2D,
+   white_texture_slot: u32,
+   index_count: i32,
+   quad_buffer: [MAX_VERTICES]Vertex,
+   quad_buffer_index: u32,
+   texture_slots: [MAX_TEXTURES]u32,
+   texture_slot_index: u32,
+}
+
 Sprite :: struct {
     texture: ^Texture2D,
     origin: [2]f32,
-    position: [2]f32,
     scale: [2]f32,
-    rotation: f32,
-    color: [4]f32,
 }
-
 
 AnimationFrame :: struct {
     src_pos: [2]f32,
@@ -74,12 +70,15 @@ animated_sprite_start :: proc (using animation: ^AnimatedSprite) {
     frame_index = 0;
     timer.timer_start(&frame_timer);
 }
+
 animated_sprite_pause :: proc (using animation: ^AnimatedSprite) {
     timer.timer_pause(&frame_timer);
 }
+
 animated_sprite_stop :: proc (using animation: ^AnimatedSprite) {
     timer.timer_stop(&frame_timer);
 }
+
 animated_sprite_add_frame :: proc (using animation: ^AnimatedSprite, src_pos: [2]f32, src_size: [2]f32, duration: u32) {
    append(&frames, AnimationFrame{src_pos, src_size, length, duration});
    length += duration;
@@ -95,28 +94,9 @@ animated_sprite_update :: proc (using animation: ^AnimatedSprite) {
         }
     }
 }
-SpriteRenderer :: struct {
-   shader_program: u32,
-
-   quad_vao: u32, 
-   quad_vbo: u32,
-   quad_ibo: u32,
-
-   white_texture: Texture2D,
-   white_texture_slot: u32,
-
-   index_count: i32,
-
-   quad_buffer: [MAX_VERTICES]Vertex,
-   quad_buffer_index: u32,
-
-   texture_slots: [MAX_TEXTURES]u32,
-   texture_slot_index: u32,
-}
 
 @(private)
 sprite_renderer : SpriteRenderer;
-
 
 v2_rotate_about_v2 :: proc (point, origin: [2]f32, angle : f32) -> (result: [2]f32) {
     s := math.sin(angle);
@@ -168,13 +148,19 @@ texture_generate :: proc (texture: ^Texture2D, width: i32, height: i32, data: ra
     gl.BindTexture(gl.TEXTURE_2D, 0);
 }
 
-texture_bind :: proc (texture: Texture2D) {
+texture_bind :: proc (texture: ^Texture2D) {
 	gl.BindTexture(gl.TEXTURE_2D, texture.id);
 }
 
 texture_pixel_to_texcoords :: proc (pixel_coords: [2]f32, texture: ^Texture2D) -> (texcoords: [2]f32) {
     texcoords = [2]f32 { pixel_coords.x / f32(texture.width), pixel_coords.y / f32(texture.height)};
     return texcoords;
+}
+
+texture_get_data :: proc (texture: ^Texture2D, format: u32,  out: rawptr) {
+	texture_bind(texture);
+	gl.GetTexImage(gl.TEXTURE_2D, 0, format, gl.UNSIGNED_BYTE, out);
+	gl.BindTexture(gl.TEXTURE_2D, 0);
 }
 
 sprite_renderer_init :: proc (shader: Shader) {
@@ -241,7 +227,6 @@ sprite_renderer_init :: proc (shader: Shader) {
     gl.BindVertexArray(0);
     gl.BindBuffer(gl.ARRAY_BUFFER, 0);
     gl.BindBuffer(gl.ELEMENT_ARRAY_BUFFER, 0);
-
 }
 
 sprite_renderer_shutdown :: proc () {
@@ -416,14 +401,14 @@ sprite_renderer_draw_quad :: proc {
 	sprite_renderer_draw_quad_texture_ext,
 };
 
-
 @(private)
-sprite_renderer_draw_static_sprite :: proc (using sprite: ^Sprite) {
+sprite_renderer_draw_static_sprite :: proc (using sprite: ^Sprite, position: [2]f32, color: [4]f32 = {1,1,1,1}, rotation: f32 = 0) {
     sprite_renderer_draw_quad(position, [2]f32{f32(texture.width) * scale.x,f32(texture.height) * scale.y}, color, texture, origin, rotation);
 }
 
 @(private)
-sprite_renderer_draw_animated_sprite :: proc (using animation: ^AnimatedSprite) {
+sprite_renderer_draw_animated_sprite :: proc (using animation: ^AnimatedSprite, position: [2]f32, color: [4]f32 = {1,1,1,1}, rotation: f32 = 0) {
+	animated_sprite_update(animation);
     current_frame := frames[frame_index];
     sprite_renderer_draw_quad(position, [2]f32{f32(texture.width) * scale.x, f32(texture.height) * scale.y}, color, 
         texture, current_frame.src_pos, current_frame.src_size, origin, rotation);

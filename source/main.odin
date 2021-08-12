@@ -2,13 +2,11 @@ package main
 
 import sdl "shared:odin-sdl2"
 import gl "shared:odin-gl"
-
 import "core:fmt"
 import "core:os"
 import "core:mem"
 import "core:math/linalg"
 import "core:math"
-
 import "world"
 import "system"
 import "system/input"
@@ -21,7 +19,6 @@ App :: struct {
     running: b32,
     resource_manager: system.ResourceManager,
 }
-
 
 init :: proc (width: i32 = 800, height: i32 = 600) -> (app: App) {
     using app;
@@ -92,7 +89,6 @@ load_resources :: proc (using app: ^App) {
 
 xx, yy: f32;
 update :: proc (using app: ^App) {
-
     graphics.camera_set_position(&camera, xx, yy);
 
     e: sdl.Event;
@@ -101,23 +97,20 @@ update :: proc (using app: ^App) {
             running = false;
         }
 		input.update_input_state(e);
-        if e.type == sdl.Event_Type.Key_Down {
-            switch (e.key.keysym.sym) {
-                case i32(sdl.SDLK_UP): {
-                    yy -= 1; 
-                }
-                case i32(sdl.SDLK_DOWN): {
-                    yy += 1; 
-                }
-                case i32(sdl.SDLK_RIGHT): {
-                    xx += 1; 
-                }
-                case i32(sdl.SDLK_LEFT): {
-                    xx -= 1; 
-                }
-            }
-        }
     }
+
+	if input.get_key_down(sdl.SDLK_w) {
+		yy -= 1; 
+	}
+	if input.get_key_down(sdl.SDLK_s) {
+		yy += 1; 
+	}
+	if input.get_key_down(sdl.SDLK_d) {
+		xx += 1; 
+	}
+	if input.get_key_down(sdl.SDLK_a) {
+		xx -= 1; 
+	}
 }
 
 shutdown :: proc (using app: ^App) {
@@ -135,37 +128,26 @@ main :: proc () {
     texture2, _ := system.rm_get_texture(&resource_manager, "wall");
     texture3, _ := system.rm_get_texture(&resource_manager, "tilesheet");
 	map_texture, _ := system.rm_get_texture(&resource_manager, "map");
+	level := world.load_map(&map_texture);
 
-	world.load_map(&map_texture);
-
-	/*
     shader_program, success := system.rm_get_shader(&resource_manager, "sprite_unlit");
     fmt.printf("shader_id: %s\n", shader_program);
 
     sprite1 := graphics.Sprite {
         &texture1,
         [2]f32 {0.5, 0.5},
-        [2]f32 {300, 50},
         [2]f32 {0.25, 0.25},
-        45,
-        [4]f32{1.0, 1.0, 1.0, 1.0},
     };
     sprite2 := graphics.Sprite {
         &texture2,
         [2]f32 {0, 0},
-        [2]f32 {100, 200},
         [2]f32 {0.1, 0.1},
-        0,
-        [4]f32{1.0, 0.0, 0.0, 1.0},
     };
 
     anim: graphics.AnimatedSprite;
     anim.texture = &texture3;
     anim.origin = {0, 0};
-    anim.position = {10, 10};
     anim.scale = {2, 2};
-    anim.rotation = 0;
-    anim.color = {1.0, 1.0, 1.0, 1.0};
 
     graphics.animated_sprite_add_frame(&anim, {0,0}, {16,16}, 1000);
     graphics.animated_sprite_add_frame(&anim, {16,0}, {16,16}, 1000);
@@ -174,14 +156,13 @@ main :: proc () {
     graphics.animated_sprite_start(&anim);
 
     graphics.sprite_renderer_init(shader_program);
-    camera.proj_matrix = linalg.matrix_ortho3d_f32 (0, 800, 600, 0, -1, 1);
+    camera.proj_matrix = linalg.matrix_ortho3d_f32 (0, f32(game.window_width), f32(game.window_height), 0, -1, 1);
 
+	angle: f32 = 0;
     for running {
         using linalg;
 
         update(&game);            
-
-        sprite1.rotation += 1;
 
         graphics.shader_bind(shader_program);
         view_proj_matrix := graphics.camera_get_view_proj_matrix(&camera);
@@ -192,31 +173,29 @@ main :: proc () {
 
         graphics.sprite_renderer_begin_batch();
 		
-		if input.get_mouse_button(input.MouseButton.LEFT) {
-			mouse_pos := input.mouse_position();
-			sprite1.position = mouse_pos;
-		}
-
-		for row in 0..3 {
-			for col in 0..3 {
-				if world.map_1()[row][col] == 1 {
-					sprite2.position.x = f32(col * 64);
-					sprite2.position.y = f32(row * 64);
-					graphics.sprite_renderer_draw_sprite(&sprite2);
+		for row in 0..<world.MAP_WIDTH {
+			for col in 0..<world.MAP_HEIGHT {
+				tile := level[row][col];
+				draw_pos := [2]f32{f32(col)* 51.2, f32(row) * 51.2};
+				if  tile == world.TileType.TILE_WALL {
+					graphics.sprite_renderer_draw_sprite(&sprite2, draw_pos, [4]f32{1,0,0,1});
+				}
+				else if tile == world.TileType.TILE_GRASS {
+					graphics.sprite_renderer_draw_sprite(&sprite2, draw_pos, [4]f32{0,1,0,1});
 				}
 			}
 		}
 
-        graphics.sprite_renderer_draw_sprite(&sprite1);
-        graphics.sprite_renderer_draw_sprite(&sprite2);
-        graphics.animated_sprite_update(&anim);
-        graphics.sprite_renderer_draw_sprite(&anim);
+        graphics.sprite_renderer_draw_sprite(&sprite1, input.mouse_screen_position(&camera));
+        graphics.sprite_renderer_draw_sprite(&sprite2, [2]f32{200, 400});
+
+		angle += 1;
+        graphics.sprite_renderer_draw_sprite(&anim, [2]f32{300, 300}, [4]f32{1,1,1,1}, angle);
 
         graphics.sprite_renderer_end_batch();
         graphics.sprite_renderer_flush();
 
         sdl.gl_swap_window(window);
     }
-	*/
 
 }
