@@ -83,6 +83,7 @@ load_resources :: proc (using app: ^App) {
     rm_load_texture(&resource_manager, rm_image_dir("wall.jpg"), false, "wall");
     rm_load_texture(&resource_manager, rm_image_dir("tilesheet.png"), true, "tilesheet");
     rm_load_texture(&resource_manager, rm_image_dir("map_texture.png"), true, "map");
+    rm_load_texture(&resource_manager, rm_image_dir("smatty.png"), true, "smatty");
 
     rm_load_shader(&resource_manager, rm_shader_dir("sprite/sprite2.vert"), rm_shader_dir("sprite/sprite2.frag"), "sprite_unlit");
 }
@@ -121,38 +122,49 @@ shutdown :: proc (using app: ^App) {
 
 camera: graphics.Camera;
 main :: proc () {
-    using game := init();
+    using game := init(1024, 768);
     defer shutdown(&game);
     
     texture1, _ := system.rm_get_texture(&resource_manager, "face");
     texture2, _ := system.rm_get_texture(&resource_manager, "wall");
-    texture3, _ := system.rm_get_texture(&resource_manager, "tilesheet");
+    smatty, _ := system.rm_get_texture(&resource_manager, "smatty");
+
 	map_texture, _ := system.rm_get_texture(&resource_manager, "map");
-	level := world.load_map(&map_texture);
+	map_tile_sheet: graphics.Sprite;
+    tile_map, _ := system.rm_get_texture(&resource_manager, "tilesheet");
+    map_tile_sheet.texture = &tile_map;
+    map_tile_sheet.scale = {2.0 / 32.0, 2.0 / 32.0};
+
+	map_config: world.MapConfig;
+	map_config[0x000000FF] = world.Tile {world.TileType.TILE_BLANK, {0,0}, {0,0}, false};
+	map_config[0xFFFFFFFF] = world.Tile {world.TileType.TILE_GRASS, {32,0}, {32,32}, true};
+	map_config[0xFF0000FF] = world.Tile {world.TileType.TILE_WALL, {32,32}, {32,32}, true};
+	level := world.map_load(&map_texture, map_config, &map_tile_sheet);
+	world.map_generate_collision_bounds(&level);
 
     shader_program, success := system.rm_get_shader(&resource_manager, "sprite_unlit");
     fmt.printf("shader_id: %s\n", shader_program);
 
-    sprite1 := graphics.Sprite {
-        &texture1,
-        [2]f32 {0.5, 0.5},
-        [2]f32 {0.25, 0.25},
-    };
-    sprite2 := graphics.Sprite {
-        &texture2,
-        [2]f32 {0, 0},
-        [2]f32 {0.1, 0.1},
-    };
+    sprite1: graphics.Sprite;
+	sprite1.texture = &texture1;
+    sprite1.origin  = [2]f32 {0.5, 0.5};
+    sprite1.scale   = [2]f32 {0.25, 0.25};
+
+    sprite2: graphics.Sprite;
+    sprite2.texture = &texture2;
+    sprite2.origin = [2]f32 {0, 0};
+    sprite2.scale = [2]f32 {0.1, 0.1};
 
     anim: graphics.AnimatedSprite;
-    anim.texture = &texture3;
+    anim.texture = &smatty;
     anim.origin = {0, 0};
-    anim.scale = {2, 2};
+    anim.scale = {1, 2};
 
-    graphics.animated_sprite_add_frame(&anim, {0,0}, {16,16}, 1000);
-    graphics.animated_sprite_add_frame(&anim, {16,0}, {16,16}, 1000);
-    graphics.animated_sprite_add_frame(&anim, {32,0}, {16,16}, 1000);
-    graphics.animated_sprite_add_frame(&anim, {48,0}, {16,16}, 1000);
+    graphics.animated_sprite_add_frame(&anim, {0,0}, {48,48}, 100);
+    graphics.animated_sprite_add_frame(&anim, {48,0}, {48,48}, 100);
+    graphics.animated_sprite_add_frame(&anim, {96,0}, {48,48}, 100);
+    graphics.animated_sprite_add_frame(&anim, {144,0}, {48,48}, 100);
+    graphics.animated_sprite_add_frame(&anim, {192,0}, {48,48}, 100);
     graphics.animated_sprite_start(&anim);
 
     graphics.sprite_renderer_init(shader_program);
@@ -169,33 +181,21 @@ main :: proc () {
         graphics.shader_set_mat4fv(shader_program, "u_ViewProjection", linalg.matrix_to_ptr(&view_proj_matrix));
         graphics.shader_bind(0);
 
+		if input.get_mouse_button_down(input.MouseButton.LEFT) do angle += 1;
+
         gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
         graphics.sprite_renderer_begin_batch();
-		
-		for row in 0..<world.MAP_WIDTH {
-			for col in 0..<world.MAP_HEIGHT {
-				tile := level[row][col];
-				draw_pos := [2]f32{f32(col)* 51.2, f32(row) * 51.2};
-				if  tile == world.TileType.TILE_WALL {
-					graphics.sprite_renderer_draw_sprite(&sprite2, draw_pos, [4]f32{1,0,0,1});
-				}
-				else if tile == world.TileType.TILE_GRASS {
-					graphics.sprite_renderer_draw_sprite(&sprite2, draw_pos, [4]f32{0,1,0,1});
-				}
-			}
-		}
 
-        graphics.sprite_renderer_draw_sprite(&sprite1, input.mouse_screen_position(&camera));
+		world.map_draw(&level);
+
+        graphics.sprite_renderer_draw_sprite(&sprite1, input.mouse_screen_position(&camera), [4]f32{1,1,1,1}, angle);
         graphics.sprite_renderer_draw_sprite(&sprite2, [2]f32{200, 400});
-
-		angle += 1;
-        graphics.sprite_renderer_draw_sprite(&anim, [2]f32{300, 300}, [4]f32{1,1,1,1}, angle);
+        graphics.sprite_renderer_draw_sprite(&anim, [2]f32{300, 300});
 
         graphics.sprite_renderer_end_batch();
         graphics.sprite_renderer_flush();
 
         sdl.gl_swap_window(window);
     }
-
 }

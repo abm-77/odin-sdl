@@ -16,6 +16,7 @@ InputState :: struct {
 	mouse_right: b32,
 }
 
+@(private)
 input_state: InputState;
 
 update_input_state :: proc (event: sdl.Event) {
@@ -39,8 +40,12 @@ update_input_state :: proc (event: sdl.Event) {
 		mouse_right = event.button.button == u8(sdl.Mousecode.Right);
 	}
 	else if (event.type == sdl.Event_Type.Mouse_Button_Up) {
-		mouse_left = !(event.button.button == u8(sdl.Mousecode.Left));
-		mouse_right = !(event.button.button == u8(sdl.Mousecode.Right));
+		if event.button.button == u8(sdl.Mousecode.Left) {
+			mouse_left 	= false;
+		}
+		else if event.button.button == u8(sdl.Mousecode.Right) {
+			mouse_right =	false;
+		}
 	}
 }
 
@@ -75,7 +80,7 @@ MouseButton :: enum {
 	RIGHT,
 }
 
-get_mouse_button :: proc (b: MouseButton) -> (b32) {
+get_mouse_button_down :: proc (b: MouseButton) -> (b32) {
 	using input_state;
 
 	result : b32 = false;

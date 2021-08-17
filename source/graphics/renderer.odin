@@ -406,6 +406,10 @@ sprite_renderer_draw_static_sprite :: proc (using sprite: ^Sprite, position: [2]
     sprite_renderer_draw_quad(position, [2]f32{f32(texture.width) * scale.x,f32(texture.height) * scale.y}, color, texture, origin, rotation);
 }
 
+sprite_renderer_draw_static_sprite_cropped :: proc (using sprite: ^Sprite, src_pos: [2]f32, src_size: [2] f32, position: [2]f32, color: [4]f32 = {1,1,1,1}, rotation: f32 = 0) {
+    sprite_renderer_draw_quad(position, [2]f32{f32(texture.width) * scale.x,f32(texture.height) * scale.y}, color, texture, src_pos, src_size, origin, rotation);
+}
+
 @(private)
 sprite_renderer_draw_animated_sprite :: proc (using animation: ^AnimatedSprite, position: [2]f32, color: [4]f32 = {1,1,1,1}, rotation: f32 = 0) {
 	animated_sprite_update(animation);
